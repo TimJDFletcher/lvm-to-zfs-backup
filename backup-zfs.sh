@@ -2,19 +2,27 @@
 PATH=$PATH:/sbin:/usr/sbin:/usr/local/bin
 uuid=65c49ed1-3f73-406a-9a7a-12bcf37a1d31
 date=$(date +%s)
+vg=oxygen
 snapshot_mountpoint=/run/backups
 pool=backups
-backupdir=$pool/oxygen
-vg=oxygen
+backupdir=$pool/$vg
 rsyncargs="-axH --numeric-ids --no-whole-file --inplace --delete"
-rsync_cmd=/usr/src/git/rsync/rsync
-extramountpoints="/boot /media/tim/Toshiba.Ubuntu /media/tim/U3.FAT"
+#rsync_cmd=/usr/src/git/rsync/rsync
+rsync_cmd=/usr/bin/rsync
+extramountpoints="/ /media/tim/Toshiba.Ubuntu /media/tim/U3.FAT /media/tim/Toshiba.FAT/syslinux"
 retention_cron=60
 retention_manual=5
+lockfile=/run/lock/zfsbackup.$vg
 
 if [ $(id -u) -gt 0 ] ; then
 	echo $0 needs to be run as root
 	exit 1
+fi
+
+if [ -f $lockfile ] ; then
+	echo $lockfile found, bailing out ; exit 1
+else
+	touch $lockfile
 fi
 
 if ! /usr/local/bin/zfscontrol.sh start ; then
@@ -31,7 +39,7 @@ logger ZFS backup started
 # Find and backup all volumes in the volume group
 echo "Backing up volume group $vg"
 for volume in $(lvm lvs --noheadings -o lv_name $vg) ; do
-	mountpoint=$(grep "${vg}-${volume} " /proc/mounts  | awk '{print $2}')
+	mountpoint=$(grep "^/dev/mapper/${vg}-${volume} " /proc/mounts  | awk '{print $2}')
 	size=$(lvm lvs --noheadings --nosuffix --units m /dev/$vg/$volume -o lv_size)
 	if [ x$mountpoint != x ] ; then
 		echo "$volume" ; sync
@@ -68,8 +76,12 @@ echo -n "Backing up other filesystems: "
 # Backup any extra mountpoints, eg /boot
 for mountpoint in $extramountpoints ; do
 	echo -n "$(basename $mountpoint), "
-	if grep -q $mountpoint /proc/mounts ; then
-		safename=$(echo $mountpoint | sed -e s,^/,,g -e s,/,.,g )
+	if grep -q " $mountpoint " /proc/mounts ; then
+		if [ "x/" == "x$mountpoint" ] ; then
+			safename=root
+		else
+			safename=$(echo $mountpoint | sed -e s,^/,,g -e s,/,.,g )
+		fi
 		$rsync_cmd $rsyncargs $mountpoint/ /$backupdir/$safename/
 	fi
 done
@@ -92,5 +104,5 @@ esac
 zpool list $pool
 
 logger ZFS backup completed
-
+rm $lockfile
 zfscontrol.sh stop
