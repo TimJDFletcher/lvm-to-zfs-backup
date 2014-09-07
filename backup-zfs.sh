@@ -40,15 +40,12 @@ logger ZFS backup started
 echo "Backing up volume group $vg"
 for volume in $(lvm lvs --noheadings -o lv_name $vg) ; do
 	mountpoint=$(grep "^/dev/mapper/${vg}-${volume} " /proc/mounts  | awk '{print $2}')
-	size=$(lvm lvs --noheadings --nosuffix --units m /dev/$vg/$volume -o lv_size)
 	if [ x$mountpoint != x ] ; then
 		echo "$volume" ; sync
-		lvm lvcreate --quiet -L $(echo $size/10| bc)M --chunksize 512k -s -n ${volume}.${date} /dev/${vg}/${volume} 
-		# fsck -p /dev/${vg}/${volume}.${date}
+		lvm lvcreate --quiet --extents 10%ORIGIN --chunksize 512k --snapshot -n ${volume}.${date} /dev/${vg}/${volume}
 		blockdev --setro /dev/${vg}/${volume}.${date}
 		mkdir -p $snapshot_mountpoint/$date/$volume
-
-		# Acutally do the backups
+		# Acutally backup
 		if mount -o ro /dev/${vg}/${volume}.${date} $snapshot_mountpoint/$date/$volume ; then
 			$rsync_cmd $rsyncargs $snapshot_mountpoint/$date/$volume/ /$backupdir/$volume/
 			sync ; sleep 10
