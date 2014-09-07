@@ -1,4 +1,4 @@
-#!/bin/sh
+x#!/bin/sh
 PATH=$PATH:/sbin:/usr/sbin:/usr/local/bin
 uuid=65c49ed1-3f73-406a-9a7a-12bcf37a1d31
 date=$(date +%s)
@@ -42,7 +42,7 @@ for volume in $(lvm lvs --noheadings -o lv_name $vg) ; do
 	mountpoint=$(grep "^/dev/mapper/${vg}-${volume} " /proc/mounts  | awk '{print $2}')
 	if [ x$mountpoint != x ] ; then
 		echo "$volume" ; sync
-		lvm lvcreate --quiet --extents 10%ORIGIN --chunksize 512k --snapshot -n ${volume}.${date} /dev/${vg}/${volume}
+		lvm lvcreate --quiet --extents 10%ORIGIN --chunksize 512k --snapshot --name ${volume}.${date} /dev/${vg}/${volume}
 		blockdev --setro /dev/${vg}/${volume}.${date}
 		mkdir -p $snapshot_mountpoint/$date/$volume
 		# Acutally backup
@@ -51,7 +51,7 @@ for volume in $(lvm lvs --noheadings -o lv_name $vg) ; do
 			sync ; sleep 10
 			umount $snapshot_mountpoint/$date/$volume
 		else
-			echo "$volume failed to mount skipping backup"
+			echo "$volume snapshot failed to mount skipping backup"
 		fi
 
 		sync ; sleep 30
