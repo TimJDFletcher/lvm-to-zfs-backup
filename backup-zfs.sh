@@ -1,17 +1,18 @@
 x#!/bin/sh
 PATH=$PATH:/sbin:/usr/sbin:/usr/local/bin
 uuid=65c49ed1-3f73-406a-9a7a-12bcf37a1d31
-date=$(date +%s)
 vg=oxygen
-snapshot_mountpoint=/run/backups
 pool=backups
 backupdir=$pool/$vg
-rsyncargs="-axH --numeric-ids --no-whole-file --inplace --delete"
 #rsync_cmd=/usr/src/git/rsync/rsync
 rsync_cmd=/usr/bin/rsync
 extramountpoints="/ /media/tim/Toshiba.Ubuntu /media/tim/U3.FAT /media/tim/Toshiba.FAT/syslinux"
 retention_cron=60
 retention_manual=5
+
+date=$(date +%s)
+snapshot_mountpoint=/run/backups
+rsyncargs="-axH --numeric-ids --no-whole-file --inplace --delete"
 lockfile=/run/lock/zfsbackup.$vg
 
 if [ $(id -u) -gt 0 ] ; then
