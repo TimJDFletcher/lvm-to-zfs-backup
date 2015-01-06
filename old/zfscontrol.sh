@@ -1,5 +1,10 @@
 #!/bin/sh
-. /etc/backup/zfs-backup.conf
+PATH=$PATH:/sbin:/usr/sbin
+uuid=65c49ed1-3f73-406a-9a7a-12bcf37a1d31
+luksdevice=zfsbackups
+pool=backups
+keyfile=/etc/pki/backups.key
+modules="zfs zavl zunicode zcommon znvpair spl"
 if [ $(id -u) -gt 0 ] ; then
         echo $0 needs to be run as root
         exit 1
