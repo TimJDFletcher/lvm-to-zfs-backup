@@ -71,6 +71,7 @@ done
 echo done
 rmdir $snapshot_mountpoint/$date
 
+# Seperately backup live libvirt guests
 if [ x$libvirtbackup = xtrue ] ; then
 	echo "Backing up libvirt disk images"
 	runningDomains=$(virsh list --all --state-running | egrep '^ [0-9]|^ -' | awk '{print $2}')
@@ -79,8 +80,7 @@ if [ x$libvirtbackup = xtrue ] ; then
 			virsh domblklist --details $domain |  egrep '^file[[:space:]]*disk' | awk '{print $3,$4}' | while read disk file ; do
 				virsh snapshot-create-as --domain $domain backup.$date --diskspec $disk,file=$file.$date --disk-only --atomic
 				if [ -f $file ] ; then
-					mkdir -p /$backupdir/libvirt/$domain
-					$rsync_cmd $rsyncargs $file /$backupdir/$(echo $file | sed -e 's,\./var/lib/libvirt,,g')
+					$rsync_cmd $rsyncargs $file /$backupdir/$(echo $file | sed -e 's,\var/lib/libvirt/images,var.lib.libvirt.images,g')
 				if virsh blockcommit $domain $disk --active --pivot --verbose ; then
 					rm $file.$date
 					virsh snapshot-delete $domain backup.$date --metadata
