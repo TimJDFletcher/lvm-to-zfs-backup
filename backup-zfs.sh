@@ -74,7 +74,6 @@ rmdir $snapshot_mountpoint/$date
 if [ x$libvirtbackup = xtrue ] ; then
 	echo "Backing up libvirt disk images"
 	runningDomains=$(virsh list --all --state-running | egrep '^ [0-9]|^ -' | awk '{print $2}')
-	shutoffDomains=$(virsh list --all --state-shutoff | egrep '^ [0-9]|^ -' | awk '{print $2}')
 	for domain in $runningDomains ; do
 			echo Hot backing up $domain
 			virsh domblklist --details $domain |  egrep '^file[[:space:]]*disk' | awk '{print $3,$4}' | while read disk file ; do
@@ -90,17 +89,6 @@ if [ x$libvirtbackup = xtrue ] ; then
 				fi
 			else
 				File $file not found, skipping
-			fi
-		done
-	done
-	for domain in $shutoffDomains ; do
-		echo Cold backing up $domain
-		virsh domblklist --details $domain |  egrep '^file[[:space:]]*disk' | awk '{print $3,$4}' | while read disk file ; do
-			if [ -f $file ] ; then
-				mkdir -p /$backupdir/libvirt/$domain
-				$rsync_cmd $rsyncargs $file /$backupdir/libvirt/$domain/$(basename $file)
-			else
-				echo File $file not found, skipping
 			fi
 		done
 	done
