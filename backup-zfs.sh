@@ -21,7 +21,6 @@ else
 	touch $lockfile
 fi
 
-
 # Find and backup all volumes in the volume group
 echo "Backing up volume group $vg"
 for volume in $(lvm lvs --noheadings -o lv_name $vg) ; do
@@ -72,25 +71,39 @@ done
 echo done
 rmdir $snapshot_mountpoint/$date
 
-if [ xlibvirtbackup = xtrue ] ; then
-
-echo "Backing up libvirt disk images"
-domains=$(virsh list | egrep '^ [0-9]|^ -' | awk '{print $2}')
-
-for domain in $domains ; do
-		echo Live backing up $domain
-		virsh domblklist --details $domain |  egrep '^file[[:space:]]*disk' | awk '{print $3,$4}' | while read disk file ; do
-			virsh snapshot-create-as --domain $domain backup.$date --diskspec $disk,file=$file.$date --disk-only --atomic
-			if [ -f $file ] ; then
-				mkdir -p /$backupdir/libvirt/$domain
-				rsync --inplace $file /$backupdir/libvirt/$domain/$(basename $file)
-				virsh blockcommit $domain $disk --active --pivot --verbose
-				virsh snapshot-delete $domain backup.$date --metadata
+if [ x$libvirtbackup = xtrue ] ; then
+	echo "Backing up libvirt disk images"
+	runningDomains=$(virsh list --all --state-running | egrep '^ [0-9]|^ -' | awk '{print $2}')
+	shutoffDomains=$(virsh list --all --state-shutoff | egrep '^ [0-9]|^ -' | awk '{print $2}')
+	for domain in $runningDomains ; do
+			echo Hot backing up $domain
+			virsh domblklist --details $domain |  egrep '^file[[:space:]]*disk' | awk '{print $3,$4}' | while read disk file ; do
+				virsh snapshot-create-as --domain $domain backup.$date --diskspec $disk,file=$file.$date --disk-only --atomic
+				if [ -f $file ] ; then
+					mkdir -p /$backupdir/libvirt/$domain
+					$rsync_cmd $rsyncargs $file /$backupdir/$(echo $file | sed -e 's,\./var/lib/libvirt,,g')
+				if virsh blockcommit $domain $disk --active --pivot --verbose ; then
+					rm $file.$date
+					virsh snapshot-delete $domain backup.$date --metadata
+				else
+					echo Snapshot removal of backup.$date from $domain failed
+				fi
 			else
 				File $file not found, skipping
 			fi
 		done
-done
+	done
+	for domain in $shutoffDomains ; do
+		echo Cold backing up $domain
+		virsh domblklist --details $domain |  egrep '^file[[:space:]]*disk' | awk '{print $3,$4}' | while read disk file ; do
+			if [ -f $file ] ; then
+				mkdir -p /$backupdir/libvirt/$domain
+				$rsync_cmd $rsyncargs $file /$backupdir/libvirt/$domain/$(basename $file)
+			else
+				echo File $file not found, skipping
+			fi
+		done
+	done
 fi
 
 case x$1 in
