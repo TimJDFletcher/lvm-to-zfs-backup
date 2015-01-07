@@ -21,6 +21,7 @@ else
 	touch $lockfile
 fi
 
+
 # Find and backup all volumes in the volume group
 echo "Backing up volume group $vg"
 for volume in $(lvm lvs --noheadings -o lv_name $vg) ; do
@@ -69,10 +70,28 @@ for mountpoint in $extramountpoints ; do
 	fi
 done
 echo done
-
-echo -n "Backing up libvirt disk images"
-
 rmdir $snapshot_mountpoint/$date
+
+if [ xlibvirtbackup = xtrue ] ; then
+
+echo "Backing up libvirt disk images"
+domains=$(virsh list | egrep '^ [0-9]|^ -' | awk '{print $2}')
+
+for domain in $domains ; do
+		echo Live backing up $domain
+		virsh domblklist --details $domain |  egrep '^file[[:space:]]*disk' | awk '{print $3,$4}' | while read disk file ; do
+			virsh snapshot-create-as --domain $domain backup.$date --diskspec $disk,file=$file.$date --disk-only --atomic
+			if [ -f $file ] ; then
+				mkdir -p /$backupdir/libvirt/$domain
+				rsync --inplace $file /$backupdir/libvirt/$domain/$(basename $file)
+				virsh blockcommit $domain $disk --active --pivot --verbose
+				virsh snapshot-delete $domain backup.$date --metadata
+			else
+				File $file not found, skipping
+			fi
+		done
+done
+fi
 
 case x$1 in
 xcron)
