@@ -30,7 +30,7 @@ for volume in $(lvm lvs --noheadings -o lv_name $vg) ; do
 		lvm lvcreate --quiet --extents 10%ORIGIN --chunksize 512k --snapshot --name ${volume}.${date} /dev/${vg}/${volume}
 		blockdev --setro /dev/${vg}/${volume}.${date}
 		mkdir -p $snapshot_mountpoint/$date/$volume
-		# Acutally backup
+		# Actually backup files
 		if mount -o ro /dev/${vg}/${volume}.${date} $snapshot_mountpoint/$date/$volume ; then
 			mkdir -p /$backupdir/$volume/
 			$rsync_cmd $rsyncargs $snapshot_mountpoint/$date/$volume/ /$backupdir/$volume/
@@ -73,6 +73,12 @@ rmdir $snapshot_mountpoint/$date
 
 # Seperately backup live libvirt guests
 if [ x$libvirtbackup = xtrue ] ; then
+	mountpoint=$(df /var/lib/libvirt/images | tail -n 1 | awk '{print $6}')
+	if [ "x/" = "x$mountpoint" ] ; then
+		safename=root
+	else
+		safename=$(echo $mountpoint | sed -e s,^/,,g -e s,/,.,g )
+	fi
 	echo "Backing up libvirt disk images"
 	runningDomains=$(virsh list --all --state-running | egrep '^ [0-9]|^ -' | awk '{print $2}')
 	for domain in $runningDomains ; do
@@ -80,8 +86,8 @@ if [ x$libvirtbackup = xtrue ] ; then
 			virsh domblklist --details $domain |  egrep '^file[[:space:]]*disk' | awk '{print $3,$4}' | while read disk file ; do
 				virsh snapshot-create-as --domain $domain backup.$date --diskspec $disk,file=$file.$date --disk-only --atomic
 				if [ -f $file ] ; then
-					$rsync_cmd $rsyncargs $file /$backupdir/$(echo $file | sed -e 's,\var/lib/libvirt/images,var.lib.libvirt.images,g')
-				if virsh blockcommit $domain $disk --active --pivot --verbose ; then
+					echo $rsync_cmd $rsyncargs $file /$backupdir/$(echo $file | sed -e "s,$mountpoint,$safename,g")
+				if virsh blockcommit $domain $file.$date --shallow --active --pivot --verbose ; then
 					rm $file.$date
 					virsh snapshot-delete $domain backup.$date --metadata
 				else
