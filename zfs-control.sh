@@ -1,9 +1,11 @@
 #!/bin/sh
 . /etc/backup/zfs-backup.conf
+
 if [ $(id -u) -gt 0 ] ; then
         echo $0 needs to be run as root
         exit 1
 fi
+
 mountcheck()
 {
 if ! grep "^$pool /$pool" /proc/mounts ; then
@@ -88,10 +90,10 @@ unload()
 if zpool status $pool 2>/dev/null ; then
 	echo $pool imported
 else
-	for module in $modules ; do 
+	for module in $modules ; do
 		modprobe -r $module
 	done
-	echo 3 > /proc/sys/vm/drop_caches 
+	echo 3 > /proc/sys/vm/drop_caches
 fi
 }
 
