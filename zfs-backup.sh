@@ -6,27 +6,43 @@ if [ $(id -u) -gt 0 ] ; then
 	exit 1
 fi
 
-if ! zfscontrol.sh start ; then
+if ! zfs-control.sh start ; then
 	echo Failed to start ZFS pool, bailing out
 	logger Failed to start ZFS pool, backup aborted
 	exit 1
 fi
 
+
+vglock()
+{
+lockfile=/run/lock/zfsbackup.$vg
 if [ -f $lockfile ] ; then
 	echo $lockfile found, bailing out
 	logger ZFS backup aborted, lock file found
-	exit 1
+	break
 else
 	logger ZFS backup started
 	touch $lockfile
 fi
+}
 
+vgunlock()
+{
+lockfile=/run/lock/zfsbackup.$vg
+if [ -f $lockfile ] ; then
+	rm -f $lockfile
+fi
+}
+
+vgbackup()
+{
+backupdir=$backupfs/$vg
 # Find and backup all volumes in the volume group
 echo "Backing up volume group $vg"
 for volume in $(lvm lvs --noheadings -o lv_name $vg) ; do
-	mountpoint=$(grep "^/dev/mapper/${vg}-${volume} " /proc/mounts  | awk '{print $2}')
-	if [ x$mountpoint != x ] ; then
-		echo "$volume" ; sync
+	if grep -q "^/dev/mapper/${vg}-${volume} " /proc/mounts ; then
+		echo "$volume"
+		# Take an LVM snapshot 10% of the size of the origin volume
 		lvm lvcreate --quiet --extents 10%ORIGIN --chunksize 512k --snapshot --name ${volume}.${date} /dev/${vg}/${volume}
 		blockdev --setro /dev/${vg}/${volume}.${date}
 		mkdir -p $snapshot_mountpoint/$date/$volume
@@ -34,13 +50,11 @@ for volume in $(lvm lvs --noheadings -o lv_name $vg) ; do
 		if mount -o ro /dev/${vg}/${volume}.${date} $snapshot_mountpoint/$date/$volume ; then
 			mkdir -p /$backupdir/$volume/
 			$rsync_cmd $rsyncargs $snapshot_mountpoint/$date/$volume/ /$backupdir/$volume/
-			sync ; sleep 10
 			umount $snapshot_mountpoint/$date/$volume
 		else
 			echo "$volume snapshot failed to mount skipping backup"
 		fi
-
-		sync ; sleep 5
+		sync ; sleep 10
 		if ! lvm lvremove --quiet --force ${vg}/${volume}.${date} ; then
 			echo lvremove failed, sleeping 30 seconds and using dmsetup
 			sync ; sleep 30
@@ -53,52 +67,79 @@ for volume in $(lvm lvs --noheadings -o lv_name $vg) ; do
 		echo "$volume not mounted skipping backup"
 	fi
 done
-echo done
-
-echo -n "Backing up other filesystems: "
-# Backup any extra mountpoints, eg /boot
-for mountpoint in $extramountpoints ; do
-	echo -n "$(basename $mountpoint), "
-	if grep -q " $mountpoint " /proc/mounts ; then
-		if [ "x/" = "x$mountpoint" ] ; then
-			safename=root
-		else
-			safename=$(echo $mountpoint | sed -e s,^/,,g -e s,/,.,g )
-		fi
-		$rsync_cmd $rsyncargs $mountpoint/ /$backupdir/$safename/
-	fi
-done
-echo done
 rmdir $snapshot_mountpoint/$date
+echo done
+}
 
-# Seperately backup live libvirt guests
-if [ x$libvirtbackup = xtrue ] ; then
-	mountpoint=$(df /var/lib/libvirt/images | tail -n 1 | awk '{print $6}')
+mountpointbackup()
+{
+echo -n "$(basename $mountpoint), "
+if grep -q " $mountpoint " /proc/mounts ; then
 	if [ "x/" = "x$mountpoint" ] ; then
 		safename=root
 	else
 		safename=$(echo $mountpoint | sed -e s,^/,,g -e s,/,.,g )
 	fi
-	echo "Backing up libvirt disk images"
-	runningDomains=$(virsh list --all --state-running | egrep '^ [0-9]|^ -' | awk '{print $2}')
-	for domain in $runningDomains ; do
-			echo Hot backing up $domain
-			virsh domblklist --details $domain |  egrep '^file[[:space:]]*disk' | awk '{print $3,$4}' | while read disk file ; do
-				virsh snapshot-create-as --domain $domain backup.$date --diskspec $disk,file=$file.$date --disk-only --atomic
-				if [ -f $file ] ; then
-					echo $rsync_cmd $rsyncargs $file /$backupdir/$(echo $file | sed -e "s,$mountpoint,$safename,g")
-				if virsh blockcommit $domain $file.$date --shallow --active --pivot --verbose ; then
-					rm $file.$date
-					virsh snapshot-delete $domain backup.$date --metadata
-				else
-					echo Snapshot removal of backup.$date from $domain failed
-				fi
-			else
-				File $file not found, skipping
-			fi
-		done
-	done
+
+	mkdir -p $snapshot_mountpoint/$date/$safename
+	if mount -o ro,bind $mountpoint $snapshot_mountpoint/$date/$safename ; then
+		$rsync_cmd $rsyncargs $snapshot_mountpoint/$date/$safename/ /$backupdir/$safename/
+		umount $snapshot_mountpoint/$date/$safename
+	fi
 fi
+}
+
+# Could be expanded to read storage locations out of libvirt
+libvirtbackup()
+{
+runningDomains=$(virsh list --all --state-running | egrep '^ [0-9]|^ -' | awk '{print $2}')
+mountpoint=$(df /var/lib/libvirt/images | tail -n 1 | awk '{print $6}')
+
+if [ "x/" = "x$mountpoint" ] ; then
+	safename=root
+else
+	safename=$(echo $mountpoint | sed -e s,^/,,g -e s,/,.,g )
+fi
+
+for domain in $runningDomains ; do
+	echo Hot backing up $domain
+	virsh domblklist --details $domain |  egrep '^file[[:space:]]*disk' | awk '{print $3,$4}' | grep /var/lib/libvirt/images | while read disk file ; do
+		if [ -f $file ] ; then
+			virsh snapshot-create-as --domain $domain backup.$date --diskspec $disk,file=$file.$date --disk-only --atomic
+			$rsync_cmd $rsyncargs $file /$backupdir/$(echo $file | sed -e "s,$mountpoint,$safename,g")
+			if virsh blockcommit $domain $file.$date --shallow --active --pivot --verbose ; then
+				rm $file.$date
+				virsh snapshot-delete $domain backup.$date --metadata
+			else
+				echo Snapshot removal of backup.$date from $domain failed
+			fi
+		else
+			echo File $file not found, skipping
+		fi
+	done
+done
+}
+
+#echo "Backing up volume groups"
+#for vg in $vgs ; do
+#	vglock
+#	vgbackup
+#	vgunlock
+#done
+
+echo -n "Backing up other filesystems: "
+backupdir=$backupfs
+for mountpoint in $extramountpoints ; do
+	mountpointbackup
+done
+echo done
+
+#echo "Backing up libvirt disk images"
+#backupdir=$backupfs
+#if [ x$libvirtbackup = xtrue ] ; then
+#	libvirtbackup
+#fi
+
 
 case x$1 in
 xcron)
@@ -115,5 +156,4 @@ esac
 zpool list $pool
 
 logger ZFS backup completed
-rm $lockfile
-zfscontrol.sh stop
+zfs-control.sh stop
