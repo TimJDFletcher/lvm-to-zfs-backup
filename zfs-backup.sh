@@ -87,6 +87,7 @@ if grep -q " $mountpoint " /proc/mounts ; then
 		umount $snapshot_mountpoint/$date/$safename
 	fi
 fi
+rmdir $snapshot_mountpoint/$date
 }
 
 # Could be expanded to read storage locations out of libvirt
@@ -120,12 +121,12 @@ for domain in $runningDomains ; do
 done
 }
 
-#echo "Backing up volume groups"
-#for vg in $vgs ; do
-#	vglock
-#	vgbackup
-#	vgunlock
-#done
+echo "Backing up volume groups"
+for vg in $vgs ; do
+	vglock
+	vgbackup
+	vgunlock
+done
 
 echo -n "Backing up other filesystems: "
 backupdir=$backupfs
@@ -134,11 +135,11 @@ for mountpoint in $extramountpoints ; do
 done
 echo done
 
-#echo "Backing up libvirt disk images"
-#backupdir=$backupfs
-#if [ x$libvirtbackup = xtrue ] ; then
-#	libvirtbackup
-#fi
+if [ x$libvirtbackup = xtrue ] ; then
+	echo "Backing up libvirt disk images"
+	backupdir=$backupfs
+	libvirtbackup
+fi
 
 
 case x$1 in
