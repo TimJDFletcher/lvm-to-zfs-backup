@@ -39,6 +39,7 @@ vgbackup()
 backupdir=$backupfs/$vg
 # Find and backup all volumes in the volume group
 echo "Backing up volume group $vg"
+mkdir -p $snapshot_mountpoint/$date
 for volume in $(lvm lvs --noheadings -o lv_name $vg) ; do
 	if grep -q "^/dev/mapper/${vg}-${volume} " /proc/mounts ; then
 		echo "$volume"
@@ -86,6 +87,7 @@ if grep -q " $mountpoint " /proc/mounts ; then
 		$rsync_cmd $rsyncargs $snapshot_mountpoint/$date/$safename/ /$backupdir/$safename/
 		umount $snapshot_mountpoint/$date/$safename
 	fi
+	rmdir $snapshot_mountpoint/$date/$safename
 fi
 rmdir $snapshot_mountpoint/$date
 }
