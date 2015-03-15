@@ -41,7 +41,7 @@ backupdir=$backupfs/$vg
 echo "Backing up volume group $vg"
 mkdir -p $snapshot_mountpoint/$date
 for volume in $(lvm lvs --noheadings -o lv_name $vg) ; do
-	if grep -q "^/dev/mapper/${vg}-${volume} " /proc/mounts ; then
+	if mount | grep -q "^/dev/mapper/${vg}-${volume} "; then
 		echo "$volume"
 		# Take an LVM snapshot 10% of the size of the origin volume
 		lvm lvcreate --quiet --extents 10%ORIGIN --chunksize 512k --snapshot --name ${volume}.${date} /dev/${vg}/${volume}
