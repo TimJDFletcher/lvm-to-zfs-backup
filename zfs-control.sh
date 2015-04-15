@@ -2,132 +2,132 @@
 . /etc/backup/zfs-backup.conf
 
 if [ $(id -u) -gt 0 ] ; then
-        echo $0 needs to be run as root
-        exit 1
+    echo $0 needs to be run as root
+    exit 1
 fi
 
 mountcheck()
 {
-if ! grep "^$pool /$pool" /proc/mounts ; then
+    if ! grep "^$pool /$pool" /proc/mounts ; then
 	if ! zfs mount $pool ; then
-		echo "Backup drive not found or import failed"
-		exit 1
+	    echo "Backup drive not found or import failed"
+	    exit 1
 	fi
-fi
+    fi
 }
 
 start()
 {
-if ! cryptsetup status $luksdevice ; then
+    if ! cryptsetup status $luksdevice ; then
 	cryptsetup luksOpen --key-file $keyfile /dev/disk/by-uuid/$uuid $luksdevice
-fi
+    fi
 
-if ! zpool status $pool 2>/dev/null ; then
+    if ! zpool status $pool 2>/dev/null ; then
 	rm -f /etc/zfs/zpool.cache
 	modprobe zfs
 	if ! zpool import -d /dev/mapper $pool ; then
-		echo "Backup drive not found or import failed"
-		exit 1
+	    echo "Backup drive not found or import failed"
+	    exit 1
 	else
-		mountcheck
-		diskperf
+	    mountcheck
+	    diskperf
 	fi
-fi
+    fi
 
 }
 
 diskperf()
 {
-# Setup disk performance
-devname=$(udevadm info -q name -n /dev/disk/by-uuid/$uuid)
-smartctl -l scterc,70,70 /dev/disk/by-uuid/$uuid
-hdparm -W 1 /dev/disk/by-uuid/$uuid
-echo 8192 > /sys/block/$devname/queue/nr_requests
-echo deadline > /sys/block/$devname/queue/scheduler
+    # Setup disk performance
+    devname=$(udevadm info -q name -n /dev/disk/by-uuid/$uuid)
+    smartctl -l scterc,70,70 /dev/disk/by-uuid/$uuid
+    hdparm -W 1 /dev/disk/by-uuid/$uuid
+    echo 8192 > /sys/block/$devname/queue/nr_requests
+    echo deadline > /sys/block/$devname/queue/scheduler
 }
 
 forcestart()
 {
-if ! cryptsetup status $luksdevice ; then
+    if ! cryptsetup status $luksdevice ; then
 	echo $password | cryptsetup luksOpen /dev/disk/by-uuid/$uuid $luksdevice
-fi
-if ! zpool status $pool 2>/dev/null ; then
+    fi
+    if ! zpool status $pool 2>/dev/null ; then
 	rm -f /etc/zfs/zpool.cache
 	if ! zpool import -f -d /dev/mapper $pool ; then
-		echo "Backup drive not found or import failed"
-		exit 1
+	    echo "Backup drive not found or import failed"
+	    exit 1
 	else
-		diskperf
+	    diskperf
 	fi
-fi
+    fi
 }
 
 scrub()
 {
-	start
-	sleep 10
-	zpool scrub $pool
+    start
+    sleep 10
+    zpool scrub $pool
 }
 
 stop()
 {
-if ! zpool status $pool 2>/dev/null ; then
+    if ! zpool status $pool 2>/dev/null ; then
 	echo $pool not imported
 	hdparm /dev/disk/by-uuid/$uuid
-elif zpool export $pool ; then
+    elif zpool export $pool ; then
 	sync ; sleep 10
 	cryptsetup luksClose $luksdevice
 	sync ; sleep 10
 	hdparm /dev/disk/by-uuid/$uuid
 	rm -f /etc/zfs/zpool.cache
-else
+    else
 	echo ZFS drive in use bailing out
-fi
+    fi
 }
 
 unload()
 {
-if zpool status $pool 2>/dev/null ; then
+    if zpool status $pool 2>/dev/null ; then
 	echo $pool imported
-else
+    else
 	for module in $modules ; do
-		modprobe -r $module
+	    modprobe -r $module
 	done
 	echo 3 > /proc/sys/vm/drop_caches
-fi
+    fi
 }
 
 case $1 in
-start)
+    start)
 	start
-;;
-forcestart)
+	;;
+    forcestart)
 	forcestart
-;;
-stop)
+	;;
+    stop)
 	stop
-;;
-restart)
+	;;
+    restart)
 	stop
 	sleep 5
 	start
-;;
-force)
+	;;
+    force)
 	stop
 	sleep 5
 	forcestart
-;;
-scrub)
+	;;
+    scrub)
 	scrub
-;;
-rmmod)
+	;;
+    rmmod)
 	stop
 	sleep 5
 	unload
-;;
-*)
+	;;
+    *)
 	echo Unknown option $1
 	echo "Options are: start, stop, forcestart, restart and scrub"
 	exit 1
-;;
+	;;
 esac
