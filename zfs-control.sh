@@ -40,10 +40,16 @@ diskperf()
 {
     # Setup disk performance
     devname=$(udevadm info -q name -n /dev/disk/by-uuid/$uuid)
+    # Set retry timeout to 7 seconds
     smartctl -l scterc,70,70 /dev/disk/by-uuid/$uuid
+    # Turn on drive caches
     hdparm -W 1 /dev/disk/by-uuid/$uuid
-    echo 8192 > /sys/block/$devname/queue/nr_requests
-    echo deadline > /sys/block/$devname/queue/scheduler
+    if [ -f /sys/block/$devname/queue/nr_requests ] ; then 
+        echo 8192 > /sys/block/$devname/queue/nr_requests
+    fi
+    if [ -f /sys/block/$devname/queue/scheduler ] ; then 
+        echo deadline > /sys/block/$devname/queue/scheduler
+    fi
 }
 
 forcestart()
