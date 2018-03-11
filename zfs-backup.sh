@@ -71,13 +71,18 @@ mountpointbackup()
     backupdir=$TARGET/extra
     mkdir -p $backupdir
     echo -n "$(basename $mountpoint), "
+    if [ "x/" = "x$mountpoint" ] ; then
+        safename=root
+    else
+        safename=$(echo $mountpoint | sed -e s,^/,,g -e s,/,.,g )
+    fi
+    if [ -f $CONF_DIR/${safename}.excludes ] ; then
+        rsyncargs="${RSYNC_ARGS_BASE} --delete-excluded --exclude-from=${CONF_DIR}/${safename}.excludes"
+    else
+        rsyncargs="${RSYNC_ARGS_BASE}"
+    fi
     if grep -q " $mountpoint " /proc/mounts ; then
-        if [ "x/" = "x$mountpoint" ] ; then
-            safename=root
-        else
-            safename=$(echo $mountpoint | sed -e s,^/,,g -e s,/,.,g )
-        fi
-        $RSYNC_CMD $rsyncargs $mountpoint /$backupdir/$safename/
+        $RSYNC_CMD $rsyncargs $mountpoint/ /$backupdir/$safename/
     fi
 }
 
