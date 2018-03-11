@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash -e
 . /etc/zfsbackups/zfs-backup.conf
 
 if [ $(id -u) -gt 0 ] ; then
