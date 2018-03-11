@@ -27,49 +27,49 @@ vgunlock()
 
 vgbackup()
 {
-    backupdir=$backupfs/$vg
-    # Find and backup all volumes in the volume group
+    backupdir=/$TARGET/lvm/$vg
     echo "Backing up volume group $vg"
-    mkdir -p $snapshot_mountpoint/$date
     for volume in $(lvm lvs --noheadings -o lv_name $vg) ; do
         if mount | grep -q "^/dev/mapper/${vg}-${volume} "; then
             echo "$volume"
             # Take an LVM snapshot 10% of the size of the origin volume
-            lvm lvcreate --quiet --extents 10%ORIGIN --chunksize 512k --snapshot --name ${volume}.${date} /dev/${vg}/${volume}
-            blockdev --setro /dev/${vg}/${volume}.${date}
-            mkdir -p $snapshot_mountpoint/$date/$volume
-            if [ -f $conf_dir/${vg}-${volume}.excludes ] ; then
-                rsyncargs="${rsyncargs_base} --delete-excluded --exclude-from=$conf_dir/${vg}-${volume}.excludes"
+            lvm lvcreate --quiet --extents 10%ORIGIN --chunksize 512k --snapshot --name ${volume}.${DATE} /dev/${vg}/${volume}
+            blockdev --setro /dev/${vg}/${volume}.${DATE}
+            mkdir -p $SNAP_MOUNTPOINT/$DATE/$volume
+            if [ -f $CONF_DIR/${vg}-${volume}.excludes ] ; then
+                rsyncargs="${RSYNC_ARGS_BASE} --delete-excluded --exclude-from=${CONF_DIR}/${vg}-${volume}.excludes"
             else
-                rsyncargs="${rsyncargs_base}"
+                rsyncargs="${RSYNC_ARGS_BASE}"
             fi
             # Actually backup files
-            if mount -o ro /dev/${vg}/${volume}.${date} $snapshot_mountpoint/$date/$volume ; then
-                mkdir -p /$backupdir/$volume/
-                $rsync_cmd $rsyncargs $snapshot_mountpoint/$date/$volume/ /$backupdir/$volume/
-                umount $snapshot_mountpoint/$date/$volume
+            if mount -o ro /dev/${vg}/${volume}.${DATE} $SNAP_MOUNTPOINT/$DATE/$volume ; then
+                mkdir -p $backupdir/$volume
+                $RSYNC_CMD $rsyncargs $SNAP_MOUNTPOINT/$DATE/$volume/ $backupdir/$volume/
+                umount $SNAP_MOUNTPOINT/$DATE/$volume
             else
                 echo "$volume snapshot failed to mount skipping backup"
             fi
             sync ; sleep 10
-            if ! lvm lvremove --quiet --force ${vg}/${volume}.${date} ; then
+            if ! lvm lvremove --quiet --force ${vg}/${volume}.${DATE} ; then
                 echo lvremove failed, sleeping 30 seconds and using dmsetup
                 sync ; sleep 30
                 dmsetup remove ${vg}-${volume}-real
-                dmsetup remove ${vg}-${volume}.${date}
-                lvm lvremove --quiet --force ${vg}/${volume}.${date}
+                dmsetup remove ${vg}-${volume}.${DATE}
+                lvm lvremove --quiet --force ${vg}/${volume}.${DATE}
             fi
-            rmdir $snapshot_mountpoint/$date/$volume
+            rmdir $SNAP_MOUNTPOINT/$DATE/$volume
         else
             echo "$volume not mounted skipping backup"
         fi
     done
-    rmdir $snapshot_mountpoint/$date
+    rmdir $SNAP_MOUNTPOINT/$DATE
     echo done
 }
 
 mountpointbackup()
 {
+    backupdir=$TARGET/extra
+    mkdir -p $backupdir
     echo -n "$(basename $mountpoint), "
     if grep -q " $mountpoint " /proc/mounts ; then
         if [ "x/" = "x$mountpoint" ] ; then
@@ -77,15 +77,8 @@ mountpointbackup()
         else
             safename=$(echo $mountpoint | sed -e s,^/,,g -e s,/,.,g )
         fi
-
-        mkdir -p $snapshot_mountpoint/$date/$safename
-        if mount -o ro,bind $mountpoint $snapshot_mountpoint/$date/$safename ; then
-            $rsync_cmd $rsyncargs $snapshot_mountpoint/$date/$safename/ /$backupdir/$safename/
-            umount $snapshot_mountpoint/$date/$safename
-        fi
-        rmdir $snapshot_mountpoint/$date/$safename
+        $RSYNC_CMD $rsyncargs $mountpoint /$backupdir/$safename/
     fi
-    rmdir $snapshot_mountpoint/$date
 }
 
 echo "Backing up volume groups"
@@ -97,16 +90,9 @@ for vg in $vgs ; do
 done
 
 echo -n "Backing up other filesystems: "
-backupdir=$backupfs
-for mountpoint in $extramountpoints ; do
+for mountpoint in $EXTRAMOUNTPOINTS ; do
     mountpointbackup
 done
 echo done
-
-if [ x$libvirtbackup = xtrue ] ; then
-    echo "Backing up libvirt disk images"
-    backupdir=$backupfs
-    libvirtbackup
-fi
 
 logger ZFS backup completed
