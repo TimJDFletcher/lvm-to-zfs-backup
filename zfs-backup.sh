@@ -8,7 +8,6 @@ fi
 
 vglock()
 {
-    lockfile=$lockdir/${vg}.zfsbackup
     if [ -f $lockfile ] ; then
         echo $lockfile found, bailing out
         logger ZFS backup aborted, lock file found
@@ -21,9 +20,8 @@ vglock()
 
 vgunlock()
 {
-    lockfile=$lockdir/${vg}.zfsbackup
     if [ -f $lockfile ] ; then
-        rm -f $lockfile
+        rm $lockfile
     fi
 }
 
@@ -92,6 +90,7 @@ mountpointbackup()
 
 echo "Backing up volume groups"
 for vg in $vgs ; do
+    lockfile=$lockdir/${vg}.zfsbackup
     vglock
     vgbackup
     vgunlock
