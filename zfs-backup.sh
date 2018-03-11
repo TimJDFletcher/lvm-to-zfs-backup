@@ -15,7 +15,7 @@ fi
 
 vglock()
 {
-    lockfile=/run/lock/zfsbackup.$vg
+    lockfile=$lockdir/${vg}.zfsbackup
     if [ -f $lockfile ] ; then
         echo $lockfile found, bailing out
         logger ZFS backup aborted, lock file found
@@ -28,7 +28,7 @@ vglock()
 
 vgunlock()
 {
-    lockfile=/run/lock/zfsbackup.$vg
+    lockfile=$lockdir/${vg}.zfsbackup
     if [ -f $lockfile ] ; then
         rm -f $lockfile
     fi
