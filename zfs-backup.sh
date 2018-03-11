@@ -41,7 +41,7 @@ vgbackup()
             blockdev --setro /dev/${vg}/${volume}.${date}
             mkdir -p $snapshot_mountpoint/$date/$volume
             if [ -f $conf_dir/${vg}-${volume}.excludes ] ; then
-                rsyncargs="${rsyncargs_base} --delete-excluded --exclude-from=$conf_dir/$volume.excludes"
+                rsyncargs="${rsyncargs_base} --delete-excluded --exclude-from=$conf_dir/${vg}-${volume}.excludes"
             else
                 rsyncargs="${rsyncargs_base}"
             fi
