@@ -91,37 +91,6 @@ mountpointbackup()
     rmdir $snapshot_mountpoint/$date
 }
 
-# Could be expanded to read storage locations out of libvirt
-libvirtbackup()
-{
-    runningDomains=$(virsh list --all --state-running | egrep '^ [0-9]|^ -' | awk '{print $2}')
-    mountpoint=$(df /var/lib/libvirt/images | tail -n 1 | awk '{print $6}')
-
-    if [ "x/" = "x$mountpoint" ] ; then
-        safename=root
-    else
-        safename=$(echo $mountpoint | sed -e s,^/,,g -e s,/,.,g )
-    fi
-
-    for domain in $runningDomains ; do
-        echo Hot backing up $domain
-        virsh domblklist --details $domain |  egrep '^file[[:space:]]*disk' | awk '{print $3,$4}' | grep /var/lib/libvirt/images | while read disk file ; do
-        if [ -f $file ] ; then
-            virsh snapshot-create-as --domain $domain backup.$date --diskspec $disk,file=$file.$date --disk-only --atomic
-            $rsync_cmd $rsyncargs $file /$backupdir/$(echo $file | sed -e "s,$mountpoint,$safename,g")
-            if virsh blockcommit $domain $file.$date --shallow --active --pivot --verbose ; then
-                rm $file.$date
-                virsh snapshot-delete $domain backup.$date --metadata
-            else
-                echo Snapshot removal of backup.$date from $domain failed
-            fi
-        else
-            echo File $file not found, skipping
-        fi
-    done
-done
-}
-
 echo "Backing up volume groups"
 for vg in $vgs ; do
     vglock
@@ -142,20 +111,4 @@ if [ x$libvirtbackup = xtrue ] ; then
     libvirtbackup
 fi
 
-
-case x$1 in
-    xcron)
-        zfs-auto-snapshot.sh --syslog -p snap --label=cron   --keep=$retention_cron $backupfs
-        ;;
-    x)
-        zfs-auto-snapshot.sh --syslog -p snap --label=manual --keep=$retention_manual $backupfs
-        ;;
-    *)
-        zfs-auto-snapshot.sh --syslog -p snap --label=$1     --keep=$retention_manual $backupfs
-        ;;
-esac
-
-zpool list $pool
-
 logger ZFS backup completed
-zfs-control.sh stop
