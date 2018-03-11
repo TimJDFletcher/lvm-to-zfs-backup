@@ -1,5 +1,5 @@
 #!/bin/sh
-. /etc/backup/zfs-backup.conf
+. /etc/zfsbackups/zfs-backup.conf
 
 if [ $(id -u) -gt 0 ] ; then
     echo $0 needs to be run as root
