@@ -6,12 +6,6 @@ if [ $(id -u) -gt 0 ] ; then
     exit 1
 fi
 
-if ! zfs-control.sh start ; then
-    echo Failed to start ZFS pool, bailing out
-    logger Failed to start ZFS pool, backup aborted
-    exit 1
-fi
-
 vglock()
 {
     lockfile=$lockdir/${vg}.zfsbackup
