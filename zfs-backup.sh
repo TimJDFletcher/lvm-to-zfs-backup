@@ -87,7 +87,7 @@ mountpointbackup()
 }
 
 echo "Backing up volume groups"
-for vg in $vgs ; do
+for vg in $VGs ; do
     lockfile=$lockdir/${vg}.zfsbackup
     vglock
     vgbackup
