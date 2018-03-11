@@ -40,6 +40,11 @@ vgbackup()
             lvm lvcreate --quiet --extents 10%ORIGIN --chunksize 512k --snapshot --name ${volume}.${date} /dev/${vg}/${volume}
             blockdev --setro /dev/${vg}/${volume}.${date}
             mkdir -p $snapshot_mountpoint/$date/$volume
+            if [ -f $conf_dir/${volume}.excludes ] ; then
+                rsyncargs="${rsyncargs_base} --delete-excluded --exclude-from=$conf_dir/$volume.excludes"
+            else
+                rsyncargs="${rsyncargs_base}"
+            fi
             # Actually backup files
             if mount -o ro /dev/${vg}/${volume}.${date} $snapshot_mountpoint/$date/$volume ; then
                 mkdir -p /$backupdir/$volume/
