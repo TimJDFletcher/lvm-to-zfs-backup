@@ -12,7 +12,6 @@ if ! zfs-control.sh start ; then
     exit 1
 fi
 
-
 vglock()
 {
     lockfile=$lockdir/${vg}.zfsbackup
