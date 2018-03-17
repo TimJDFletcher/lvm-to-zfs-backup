@@ -1,0 +1,9 @@
+/var/log/zfsbackup.log
+{
+        rotate 4
+        weekly
+        missingok
+        notifempty
+        delaycompress
+        compress
+}
