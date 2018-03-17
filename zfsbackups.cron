@@ -1,0 +1,1 @@
+37 */4 * * * root /etc/zfsbackups/zfs-backup.sh >> /var/log/zfsbackup.log 2>&1
