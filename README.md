@@ -42,7 +42,7 @@ sudo ln -s /etc/zfsbackups/zfsbackups.cron /etc/cron.d/
 Enable log rotation
 
 ```
-sudo ln -s /etc/zfsbackups/zfsbackups.logrotate /etc/logrotate.d/
+sudo ln -s /etc/zfsbackups/zfsbackups.logrotate /etc/logrotate.d/zfsbackups
 ```
 
 ## Deployment
