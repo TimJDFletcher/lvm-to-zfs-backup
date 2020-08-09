@@ -57,6 +57,12 @@ This code only creates an rsync based clone of mounted filesystems from the LVM 
 Maintaining long term archives of these snapshots is a problem for the reader, 
 I use [zfs auto-snapshot](https://github.com/zfsonlinux/zfs-auto-snapshot)
 
+## Excluding Files
+
+Create a file with the name ${VG}-${LV}.excludes and use standard rsync exclude patterns.
+
+There is an [example](rsync.excludes) config file in the repo
+
 ## Authors
 
 * **Tim Fletcher**
