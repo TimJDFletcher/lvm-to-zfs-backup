@@ -1,17 +1,18 @@
 CONF_DIR=/etc/zfsbackups
 DATE=$(date +%Y%m%d.%H%M%S)
 
+# LVM VG backup sources
 VGs=source-vg
 
-# Backup targets
+# Additional mountpoints to backup
+EXTRAMOUNTPOINTS="/boot"
+
+# ZFS Backup targets
 POOL=target-pool
 ZFS_FS=backups/xxxx
 TARGET=$POOL/$ZFS_FS
 
-# Additional backup options
-EXTRAMOUNTPOINTS="/boot"
-
-# Backup target
+# Backup working directories
 SNAP_MOUNTPOINT=/run/zfsbackups
 LOCKDIR=/run/lock
 
