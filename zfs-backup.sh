@@ -79,7 +79,7 @@ mountpointbackup() {
     rsyncargs="${RSYNC_ARGS_BASE}"
   fi
   if grep -q " $mountpoint " /proc/mounts; then
-    $RSYNC_CMD "$rsyncargs $mountpoint/" "$backupdir/$safename/"
+    $RSYNC_CMD $rsyncargs "$mountpoint/" "$backupdir/$safename/"
   fi
 }
 
