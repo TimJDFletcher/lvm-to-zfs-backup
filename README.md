@@ -36,7 +36,7 @@ sudo /etc/zfsbackups/zfs-backup.sh
 Enable cron based backups
 
 ```
-sudo ln -s /etc/zfsbackups/zfsbackups.cron /etc/cron.d/
+sudo ln -s /etc/zfsbackups/zfsbackups.cron /etc/cron.d/zfsbackups
 ```
 
 Enable log rotation
