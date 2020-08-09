@@ -85,7 +85,7 @@ mountpointbackup() {
 
 echo "Backing up volume groups"
 for vg in ${VGs}; do
-  lockfile="${lockdir}/${vg}.zfsbackup"
+  lockfile="${LOCKDIR}/${vg}.zfsbackup"
   vglock
   vgbackup
   vgunlock
