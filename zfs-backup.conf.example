@@ -10,7 +10,7 @@ EXTRAMOUNTPOINTS="/boot"
 # ZFS Backup targets
 POOL=target-pool
 ZFS_FS=backups/xxxx
-TARGET=$POOL/$ZFS_FS
+TARGET=/$POOL/$ZFS_FS
 
 # Backup working directories
 SNAP_MOUNTPOINT=/run/zfsbackups

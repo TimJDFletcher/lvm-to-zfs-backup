@@ -24,7 +24,7 @@ vgunlock() {
 }
 
 vgbackup() {
-  backupdir=/$TARGET/lvm/$vg
+  backupTarget=$TARGET/lvm/$vg
   echo "Backing up volume group $vg"
   for volume in $(lvm lvs --noheadings -o lv_name "$vg"); do
     if grep -q "^/dev/mapper/${vg}-${volume} " /proc/mounts; then
@@ -40,8 +40,7 @@ vgbackup() {
       fi
       # Actually backup files
       if mount -o ro "/dev/${vg}/${volume}.${DATE}" "${SNAP_MOUNTPOINT}/$DATE/$volume"; then
-        mkdir -p "$backupdir/$volume"
-        $RSYNC_CMD $rsyncargs "${SNAP_MOUNTPOINT}/${DATE}/$volume/" "$backupdir/$volume/"
+        $RSYNC_CMD $rsyncargs "${SNAP_MOUNTPOINT}/${DATE}/$volume/" "$backupTarget/$volume/"
         umount "${SNAP_MOUNTPOINT}/${DATE}/$volume"
       else
         echo "$volume snapshot failed to mount skipping backup"
@@ -65,13 +64,12 @@ vgbackup() {
 }
 
 mountpointbackup() {
-  backupdir=/$TARGET/extra
-  mkdir -p $backupdir
-  echo -n "$(basename $mountpoint), "
+  backupTarget=$TARGET/extra
+  echo -n "$(basename "$mountpoint"), "
   if [ "x/" = "x$mountpoint" ]; then
     safename=root
   else
-    safename="$(echo $mountpoint | sed -e s,^/,,g -e s,/,.,g)"
+    safename="$(echo "$mountpoint" | sed -e s,^/,,g -e s,/,.,g)"
   fi
   if [ -f "$CONF_DIR/${safename}.excludes" ]; then
     rsyncargs="${RSYNC_ARGS_BASE} --delete-excluded --exclude-from=${CONF_DIR}/${safename}.excludes"
@@ -79,7 +77,7 @@ mountpointbackup() {
     rsyncargs="${RSYNC_ARGS_BASE}"
   fi
   if grep -q " $mountpoint " /proc/mounts; then
-    $RSYNC_CMD $rsyncargs "$mountpoint/" "$backupdir/$safename/"
+    $RSYNC_CMD $rsyncargs "$mountpoint/" "$backupTarget/$safename/"
   fi
 }
 
