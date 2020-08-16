@@ -1,5 +1,6 @@
 CONF_DIR=/etc/zfsbackups
 DATE=$(date +%Y%m%d.%H%M%S)
+PATH=$PATH:/sbin:/usr/sbin:${CONF_DIR}
 
 # LVM VG backup sources
 VGs=source-vg
