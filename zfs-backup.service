@@ -1,0 +1,12 @@
+[Unit]
+Description=LVM to ZFS backup (/etc/zfsbackups/zfs-backup.sh)
+Documentation=https://github.com/TimJDFletcher/lvm-to-zfs-backup
+# The script takes its own lock file, and a timer never starts a unit that is still running.
+After=zfs-mount.service
+
+[Service]
+Type=oneshot
+ExecStart=/etc/zfsbackups/zfs-backup.sh
+# The same file the cron line writes, which zfsbackups.logrotate rotates.
+StandardOutput=append:/var/log/zfsbackup.log
+StandardError=append:/var/log/zfsbackup.log

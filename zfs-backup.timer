@@ -1,0 +1,11 @@
+[Unit]
+Description=LVM to ZFS backup every four hours (the times of zfsbackups.cron, 37 */4 * * *)
+Documentation=https://github.com/TimJDFletcher/lvm-to-zfs-backup
+
+[Timer]
+OnCalendar=*-*-* 00/4:37:00
+# A run missed while the machine was off happens at the next boot. Cron does not do that.
+Persistent=true
+
+[Install]
+WantedBy=timers.target

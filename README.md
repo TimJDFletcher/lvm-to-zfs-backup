@@ -33,11 +33,25 @@ Test the backup works
 sudo /etc/zfsbackups/zfs-backup.sh
 ```
 
-Enable cron based backups
+Schedule the backup, every four hours at 37 minutes past, with systemd or with cron. Use one, not both.
+
+With a systemd timer, which also records each run's result (`systemctl status zfs-backup.service`):
+
+```
+sudo systemctl link /etc/zfsbackups/zfs-backup.service
+sudo systemctl enable --now /etc/zfsbackups/zfs-backup.timer
+```
+
+The units are linked from the checkout, so a `git pull` followed by `sudo systemctl daemon-reload`
+updates them. Add local settings in a drop-in (`sudo systemctl edit zfs-backup.service`), not in the checkout.
+
+Or with cron
 
 ```
 sudo ln -s /etc/zfsbackups/zfsbackups.cron /etc/cron.d/zfsbackups
 ```
+
+Both write the script's output to `/var/log/zfsbackup.log`.
 
 Enable log rotation
 
