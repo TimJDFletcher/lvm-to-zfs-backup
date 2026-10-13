@@ -1,0 +1,3 @@
+# The local config, copied from zfs-backup.conf.example. It names a machine's volume
+# groups and pool, so it stays out of the repo.
+/zfs-backup.conf
